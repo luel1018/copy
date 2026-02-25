@@ -1,19 +1,43 @@
 package com.example.demo.board;
 
 import com.example.demo.board.model.Board;
+import com.example.demo.common.exception.BaseException;
+import com.example.demo.user.UserRepository;
+import com.example.demo.user.model.User;
 import lombok.RequiredArgsConstructor;
 import com.example.demo.board.model.BoardDto;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+
+import static com.example.demo.common.model.BaseResponseStatus.FAIL;
 
 @RequiredArgsConstructor
 @Service
 public class BoardService {
     private final BoardRepository boardRepository;
+    private final UserRepository userRepository;
+
+    private User getLoginUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw BaseException.from(FAIL);
+        }
+
+        return userRepository.findByEmail(authentication.getName()).orElseThrow(
+                () -> BaseException.from(FAIL)
+        );
+    }
 
     public BoardDto.RegRes register(BoardDto.RegReq dto) {
-        Board entity = boardRepository.save(dto.toEntity());
+        User user = getLoginUser();
+
+        Board entity = dto.toEntity();
+        entity.setUser(user);
+
+        boardRepository.save(entity);
 
         return BoardDto.RegRes.from(entity);
     }
